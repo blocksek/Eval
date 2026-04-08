@@ -14,13 +14,13 @@ These are the Solidity challenges from [Wonderland CTF 2026](https://ctf.wonderl
 | [fixed-deposits](fixed-deposits/) | Runtime Verification |
 | [infinity-send](infinity-send/) | patrickalphac |
 | [liquid-omens](liquid-omens/) | EV_om |
+| [route](route/) | MiloTruck |
 | [ludopathy](ludopathy/) | Wonderland |
 | [meridian-credits](meridian-credits/) | Wonderland |
 | [overseer](overseer/) | Wonderland |
 | [pigeon](pigeon/) | Wonderland |
 | [precompile20](precompile20/) * | Wonderland |
 | [red-memory](red-memory/) ** | Wonderland |
-| [route](route/) | Wonderland |
 | [score](score/) | Wonderland |
 | [sentinel-protocol](sentinel-protocol/) | Wonderland |
 | [stakehouse](stakehouse/) | Wonderland |
