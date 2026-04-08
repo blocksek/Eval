@@ -4,13 +4,13 @@ These are the source files for the challenges of [Wonderland CTF 2026](https://c
 
 ## Write-ups
 
-<!-- Add write-up links here -->
+{<!-- Add write-up links here -->}
 
 ## Challenges
 
 The challenges are split into two categories:
 
-- **[Solidity](solidity/)** — 20 challenges running on local Anvil instances via Docker
-- **[Aztec Noir](aztec-noir/)** — 5 challenges written in Noir for the Aztec network
+- **[Solidity](solidity/)** — 20 challenges
+- **[Aztec Noir](aztec-noir/)** — 5 challenges
 
 Each folder has its own README with setup instructions and challenge details.
