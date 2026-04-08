@@ -4,7 +4,7 @@ These are the source files for the challenges of [Wonderland CTF 2026](https://c
 
 ## Write-ups
 
-<!-- Add write-up links here -->
+{<!-- Add write-up links here -->}
 
 ## Challenges
 
