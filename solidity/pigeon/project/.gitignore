@@ -1,0 +1,24 @@
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+/broadcast/
+
+# Docs
+docs/
+
+# Dotenv file
+.env
+
+# forge-ctf is copied during local build (from repo root)
+# Don't commit it - it's managed by the build process
+lib/forge-ctf/
+
+# forge-std is installed at build time via forge install
+# Don't commit it - it's managed by the build process
+lib/forge-std/
+
+# OpenZeppelin libs are installed at build time via forge install
+lib/openzeppelin-contracts-upgradeable/
+lib/openzeppelin-foundry-upgrades/

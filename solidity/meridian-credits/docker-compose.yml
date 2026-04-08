@@ -1,0 +1,22 @@
+name: meridian-credits-challenge
+
+services:
+  launcher:
+    environment:
+      CHALLENGE: meridian-credits
+      FLAG: "WCTF{m3r1d14n_cr3d1ts_d3pl3t3d}"
+    container_name: meridian-credits
+    image: meridian-credits
+    build: .
+    command: socat TCP-LISTEN:1337,reuseaddr,fork EXEC:"python3 -u challenge.py",pty,stderr,setsid,sigint,sane
+    expose:
+      - 1337
+    ports:
+      - "1337:1337"
+    networks:
+      - ctf_network
+
+networks:
+  ctf_network:
+    name: wonderlandctf
+    external: true

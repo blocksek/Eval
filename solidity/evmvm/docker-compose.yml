@@ -1,0 +1,22 @@
+name: evmvm-challenge
+
+services:
+  launcher:
+    environment:
+      CHALLENGE: evmvm
+      FLAG: "WCTF{EVMc3pt10n_1s_th3_n3xt_b1g_th1ng_4e5a9b4c}"
+    container_name: evmvm
+    image: evmvm
+    build: .
+    command: socat TCP-LISTEN:1337,reuseaddr,fork EXEC:"python3 -u challenge.py",pty,stderr,setsid,sigint,sane
+    expose:
+      - 1337
+    ports:
+      - "1337:1337"
+    networks:
+      - ctf_network
+
+networks:
+  ctf_network:
+    name: wonderlandctf
+    external: true

@@ -1,0 +1,22 @@
+name: fixed-deposits-challenge
+
+services:
+  launcher:
+    environment:
+      CHALLENGE: fixed-deposits
+      FLAG: "WCTF{RV_V3R1FY_FL4G}"
+    container_name: fixed-deposits
+    image: fixed-deposits
+    build: .
+    command: socat TCP-LISTEN:1337,reuseaddr,fork EXEC:"python3 -u challenge.py",pty,stderr,setsid,sigint,sane
+    expose:
+      - 1337
+    ports:
+      - "1337:1337"
+    networks:
+      - ctf_network
+
+networks:
+  ctf_network:
+    name: wonderlandctf
+    external: true

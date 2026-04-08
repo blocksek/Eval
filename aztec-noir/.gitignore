@@ -1,0 +1,18 @@
+node_modules
+target/
+src/artifacts/
+log/
+.vscode
+.DS_Store
+codegenCache.json
+.env
+.cursor
+pxe-*/
+wallet_data_*
+.cache
+testnet.json
+tsconfig.tsbuildinfo
+
+# flag emitter artifacts
+!src/artifacts/FlagEmitter.ts
+!target/flag_emitter-FlagEmitter.json

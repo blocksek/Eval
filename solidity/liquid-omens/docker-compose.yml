@@ -1,0 +1,22 @@
+name: liquid-omens-challenge
+
+services:
+  launcher:
+    environment:
+      CHALLENGE: liquid-omens
+      FLAG: "WCTF{the_shadow_book_was_never_canonical}"
+    container_name: liquid-omens
+    image: liquid-omens
+    build: .
+    command: socat TCP-LISTEN:1337,reuseaddr,fork EXEC:"python3 -u challenge.py",pty,stderr,setsid,sigint,sane
+    expose:
+      - 1337
+    ports:
+      - "1337:1337"
+    networks:
+      - ctf_network
+
+networks:
+  ctf_network:
+    name: wonderlandctf
+    external: true

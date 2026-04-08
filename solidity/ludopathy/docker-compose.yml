@@ -1,0 +1,22 @@
+name: ludopathy-challenge
+
+services:
+  launcher:
+    environment:
+      CHALLENGE: ludopathy
+      FLAG: "WCTF{D0NT_G4MBL3_0R_D0_TH15_1S_D3F1}"
+    container_name: ludopathy
+    image: ludopathy
+    build: .
+    command: socat TCP-LISTEN:1337,reuseaddr,fork EXEC:"python3 -u challenge.py",pty,stderr,setsid,sigint,sane
+    expose:
+      - 1337
+    ports:
+      - "1337:1337"
+    networks:
+      - ctf_network
+
+networks:
+  ctf_network:
+    name: wonderlandctf
+    external: true

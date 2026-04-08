@@ -1,0 +1,13 @@
+# Foundry build artifacts
+**/project/out/
+**/project/cache/
+**/project/broadcast/
+
+# Aztec build artifacts
+aztec-noir/src/artifacts/
+aztec-noir/target/
+aztec-noir/codegenCache.json
+aztec-noir/node_modules/
+
+# Environment files
+.env

@@ -1,0 +1,8 @@
+{
+  "lib/eigenlayer-contracts": {
+    "tag": {
+      "name": "v1.1.1",
+      "rev": "851978db8658072a07fe5ec669bf6be1aaad425f"
+    }
+  }
+}
