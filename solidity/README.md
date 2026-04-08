@@ -4,28 +4,31 @@ These are the Solidity challenges from [Wonderland CTF 2026](https://ctf.wonderl
 
 ## Challenges
 
-| Challenge | Author | Note |
-|-----------|--------|------|
-| [balance-proof](balance-proof/) | Riley Holterhus | |
-| [blackout](blackout/) | Wonderland | |
-| [cheese-lending](cheese-lending/) | montyly | |
-| [encoded-spell](encoded-spell/) | WhiteHatMage | |
-| [evmvm](evmvm/) | Kasper | |
-| [fixed-deposits](fixed-deposits/) | Runtime Verification | |
-| [infinity-send](infinity-send/) | patrickalphac | |
-| [liquid-omens](liquid-omens/) | EV_om | |
-| [ludopathy](ludopathy/) | Wonderland | |
-| [meridian-credits](meridian-credits/) | Wonderland | |
-| [overseer](overseer/) | Wonderland | |
-| [pigeon](pigeon/) | Wonderland | |
-| [precompile20](precompile20/) | Wonderland | *The Arena — Medium* |
-| [red-memory](red-memory/) | Wonderland | *The Arena — Legendary* |
-| [route](route/) | Wonderland | |
-| [score](score/) | Wonderland | |
-| [sentinel-protocol](sentinel-protocol/) | Wonderland | |
-| [stakehouse](stakehouse/) | Wonderland | |
-| [the-scrambled-zoo](the-scrambled-zoo/) | Wonderland | |
-| [uecallnft](uecallnft/) | Wonderland | |
+| Challenge | Author |
+|-----------|--------|
+| [balance-proof](balance-proof/) | Riley Holterhus |
+| [blackout](blackout/) | Wonderland |
+| [cheese-lending](cheese-lending/) | montyly |
+| [encoded-spell](encoded-spell/) | WhiteHatMage |
+| [evmvm](evmvm/) | Kasper |
+| [fixed-deposits](fixed-deposits/) | Runtime Verification |
+| [infinity-send](infinity-send/) | patrickalphac |
+| [liquid-omens](liquid-omens/) | EV_om |
+| [ludopathy](ludopathy/) | Wonderland |
+| [meridian-credits](meridian-credits/) | Wonderland |
+| [overseer](overseer/) | Wonderland |
+| [pigeon](pigeon/) | Wonderland |
+| [precompile20](precompile20/) * | Wonderland |
+| [red-memory](red-memory/) ** | Wonderland |
+| [route](route/) | Wonderland |
+| [score](score/) | Wonderland |
+| [sentinel-protocol](sentinel-protocol/) | Wonderland |
+| [stakehouse](stakehouse/) | Wonderland |
+| [the-scrambled-zoo](the-scrambled-zoo/) | Wonderland |
+| [uecallnft](uecallnft/) | Wonderland |
+
+\* *The Arena — Medium*
+\*\* *The Arena — Legendary*
 
 ## Running locally
 
