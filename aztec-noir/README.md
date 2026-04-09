@@ -22,9 +22,11 @@ These are the Aztec Noir challenges from [Wonderland CTF 2026](https://ctf.wonde
 
 ### 1. Install the Aztec toolset
 
+> **macOS note:** The Aztec CLI requires bash 4+. macOS ships with bash 3.2, so you may need to install a modern version first: `brew install bash`
+
 ```bash
 VERSION=4.2.0-aztecnr-rc.2 bash -i <(curl -sL https://install.aztec.network/4.2.0-aztecnr-rc.2)
-aztec-up 4.2.0-aztecnr-rc.2
+aztec-up install 4.2.0-aztecnr-rc.2
 ```
 
 ### 2. Install dependencies and build
