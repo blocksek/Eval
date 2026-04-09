@@ -1,4 +1,4 @@
-# CheeseLending
+# Cheese Lending
 
 ## Author
 montyly
