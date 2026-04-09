@@ -1,4 +1,4 @@
-# Red memory
+# Red Memory
 
 ## Author
 Wonderland
