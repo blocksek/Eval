@@ -4,7 +4,7 @@ These are the source files for the challenges of [Wonderland CTF 2026](https://c
 
 ## Write-ups
 
-{<!-- Add write-up links here -->}
+Solutions and write-ups are available on the [Wonderland Handbook Blog](https://handbook.wonderland.xyz/blog/ethcc-ctf-2026-solutions).
 
 ## Challenges
 
