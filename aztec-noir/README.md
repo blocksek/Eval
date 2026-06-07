@@ -122,22 +122,6 @@ Run your solution:
 yarn test:js src/ts/my_solution.test.ts
 ```
 
-### 5. Reference solutions
-
-The `src/ts/` directory and `scripts/challenges/` contain **reference solutions** that show how each challenge was solved during the competition. If you want to solve the challenges yourself first, avoid reading these files.
-
-To run all reference solutions:
-
-```bash
-yarn test:js
-```
-
-To run a single one:
-
-```bash
-yarn test:js src/ts/lucky_guess/lucky_guess.test.ts
-```
-
 ## Project structure
 
 ```
@@ -146,8 +130,6 @@ src/
     challenges/       # The 5 challenge contracts (Noir)
     flag_emitter/     # Shared flag registry contract
     test/             # Auxiliary contracts used by tests
-  ts/                 # Reference solutions (vitest) — CONTAINS SPOILERS
 scripts/
-  challenges/         # Solve scripts per challenge — CONTAINS SPOILERS
   lib/                # Shared utilities
 ```

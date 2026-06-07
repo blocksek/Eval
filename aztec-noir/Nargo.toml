@@ -6,7 +6,5 @@ members = [
     "src/nr/challenges/poisoned_flag",
     "src/nr/challenges/medium_flag_capture",
     "src/nr/challenges/the_observatory",
-    "src/nr/test/summoners_deck_solution",
     "src/nr/test/external_revert_helper",
-    "src/nr/test/the_observatory_solution",
 ]

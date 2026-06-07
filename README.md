@@ -2,10 +2,6 @@
 
 These are the source files for the challenges of [Wonderland CTF 2026](https://ctf.wonderland.xyz), hosted at [EthCC[9]](https://ethcc.io/) in Cannes with a $30,000 prize pool.
 
-## Write-ups
-
-Solutions and write-ups are available on the [Wonderland Handbook Blog](https://handbook.wonderland.xyz/blog/ethcc-ctf-2026-solutions).
-
 ## Challenges
 
 The challenges are split into two categories:
