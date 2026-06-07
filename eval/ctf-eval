@@ -1,0 +1,397 @@
+#!/usr/bin/env python3
+"""
+ctf-eval  —  Wonderland CTF 2026 Eval Harness
+
+Manages local challenge instances for AI agent evaluation.
+Each Solidity challenge runs on its own Anvil instance.
+"""
+
+import argparse
+import json
+import os
+import pathlib
+import signal
+import socket
+import subprocess
+import sys
+import time
+
+CHALLENGES_DIR = pathlib.Path("/challenges")
+SOLIDITY_DIR   = CHALLENGES_DIR / "solidity"
+AZTEC_DIR      = CHALLENGES_DIR / "aztec-noir"
+STATE_DIR      = pathlib.Path("/tmp/ctf-eval")
+
+# Standard Foundry test mnemonic — funded accounts, well-known keys.
+MNEMONIC       = "test test test test test test test test test test test junk"
+SYSTEM_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+PLAYER_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+PLAYER_KEY     = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+
+BANNER = """
+╔══════════════════════════════════════════════╗
+║      Wonderland CTF 2026  —  Eval Harness    ║
+╚══════════════════════════════════════════════╝
+"""
+
+
+# ─── helpers ────────────────────────────────────────────────────────────────
+
+def find_free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
+
+
+def state_file(name: str) -> pathlib.Path:
+    return STATE_DIR / name / "state.json"
+
+
+def load_state(name: str) -> dict:
+    f = state_file(name)
+    if not f.exists():
+        sys.exit(f"Challenge '{name}' is not running.  Start it with:  ctf-eval start {name}")
+    return json.loads(f.read_text())
+
+
+def save_state(name: str, state: dict):
+    d = STATE_DIR / name
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "state.json").write_text(json.dumps(state, indent=2))
+
+
+def anvil_alive(rpc_url: str) -> bool:
+    try:
+        r = subprocess.run(
+            ["cast", "block-number", "--rpc-url", rpc_url],
+            capture_output=True, timeout=3,
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def rpc_call(rpc_url: str, method: str, params: list):
+    payload = json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1})
+    subprocess.run(
+        ["cast", "rpc", "--rpc-url", rpc_url, method] + [str(p) for p in params],
+        capture_output=True,
+    )
+
+
+def get_solidity_challenges() -> list[str]:
+    out = []
+    for d in sorted(SOLIDITY_DIR.iterdir()):
+        if d.is_dir() and d.name != "paradigm-ctf-infrastructure" and (d / "project").is_dir():
+            out.append(d.name)
+    return out
+
+
+def get_aztec_challenges() -> list[str]:
+    d = AZTEC_DIR / "src" / "nr" / "challenges"
+    if not d.exists():
+        return []
+    return sorted(x.name for x in d.iterdir() if x.is_dir())
+
+
+def challenge_address_from_broadcast(project_dir: pathlib.Path) -> str | None:
+    broadcast = project_dir / "broadcast" / "Deploy.s.sol" / "31337" / "run-latest.json"
+    if not broadcast.exists():
+        return None
+    data = json.loads(broadcast.read_text())
+    txs = data.get("transactions", [])
+    # Prefer a contract explicitly named "Challenge"
+    for tx in reversed(txs):
+        if tx.get("transactionType") == "CREATE" and tx.get("contractName") == "Challenge":
+            return tx["contractAddress"]
+    # Fall back to the last CREATE (the deployer always returns the challenge address last)
+    for tx in reversed(txs):
+        if tx.get("transactionType") == "CREATE":
+            return tx["contractAddress"]
+    return None
+
+
+# ─── commands ───────────────────────────────────────────────────────────────
+
+def cmd_list(args):
+    print(BANNER)
+    print("Solidity challenges (20):")
+    for name in get_solidity_challenges():
+        running = "  [running]" if state_file(name).exists() else ""
+        print(f"  {name}{running}")
+    print()
+    print("Aztec Noir challenges (5):")
+    for name in get_aztec_challenges():
+        print(f"  {name}")
+    print()
+    print("Quick reference:")
+    print("  ctf-eval info   <challenge>   — read the challenge README")
+    print("  ctf-eval start  <challenge>   — deploy locally, get connection info")
+    print("  ctf-eval verify <challenge>   — check isSolved()")
+    print("  ctf-eval stop   <challenge>   — tear down Anvil instance")
+
+
+def cmd_info(args):
+    name = args.name
+    readme = SOLIDITY_DIR / name / "README.md"
+    if readme.exists():
+        print(readme.read_text())
+        src = SOLIDITY_DIR / name / "project" / "src"
+        print(f"Contracts:  {src}")
+        print(f"Deploy:     {SOLIDITY_DIR / name / 'project' / 'script' / 'Deploy.s.sol'}")
+        return
+
+    readme = AZTEC_DIR / "src" / "nr" / "challenges" / name / "README.md"
+    if readme.exists():
+        print(readme.read_text())
+        print(f"Contract:   {AZTEC_DIR / 'src' / 'nr' / 'challenges' / name / 'src' / 'main.nr'}")
+        return
+
+    sys.exit(f"Unknown challenge: '{name}'. Run 'ctf-eval list' to see available challenges.")
+
+
+def cmd_start(args):
+    name = args.name
+    project_dir = SOLIDITY_DIR / name / "project"
+
+    if not project_dir.exists():
+        sys.exit(
+            f"'{name}' is not a Solidity challenge or doesn't exist.\n"
+            f"Aztec challenges require a running Aztec network — see the aztec-noir README."
+        )
+
+    # Re-use an already-running instance
+    sf = state_file(name)
+    if sf.exists():
+        state = json.loads(sf.read_text())
+        if anvil_alive(state["rpc_url"]):
+            print(f"Challenge '{name}' is already running.\n")
+            _print_connection(state)
+            return
+        print("Previous Anvil instance is gone — restarting.")
+        sf.unlink()
+
+    port = find_free_port()
+    rpc_url = f"http://127.0.0.1:{port}"
+    log_dir = STATE_DIR / name
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Starting Anvil on port {port} ...")
+    anvil_log = open(log_dir / "anvil.log", "w")
+    anvil_proc = subprocess.Popen(
+        [
+            "anvil",
+            "--port", str(port),
+            "--mnemonic", MNEMONIC,
+            "--balance", "10000",
+            "--block-time", "0",
+            "--silent",
+        ],
+        stdout=anvil_log,
+        stderr=anvil_log,
+    )
+
+    # Wait up to 15 s for Anvil to be ready
+    for _ in range(30):
+        time.sleep(0.5)
+        if anvil_alive(rpc_url):
+            break
+    else:
+        anvil_proc.terminate()
+        sys.exit("Anvil failed to start. Check /tmp/ctf-eval/{name}/anvil.log")
+
+    # Enable impersonation so forge can send from the zero address (matches the
+    # original Paradigm CTF deploy pattern used by CTFDeployer.sol)
+    subprocess.run(
+        ["cast", "rpc", "anvil_autoImpersonateAccount", "true", "--rpc-url", rpc_url],
+        capture_output=True,
+    )
+    # Fund the zero address for gas
+    subprocess.run(
+        ["cast", "rpc", "anvil_setBalance",
+         "0x0000000000000000000000000000000000000000",
+         hex(10_000 * 10**18),
+         "--rpc-url", rpc_url],
+        capture_output=True,
+    )
+
+    print("Deploying challenge ...")
+    output_file = str(log_dir / "challenge_address")
+
+    deploy_env = os.environ.copy()
+    deploy_env["MNEMONIC"]     = MNEMONIC
+    deploy_env["OUTPUT_FILE"]  = output_file
+
+    result = subprocess.run(
+        [
+            "forge", "script",
+            "--rpc-url", rpc_url,
+            "--broadcast",
+            "--unlocked",
+            "--sender", "0x0000000000000000000000000000000000000000",
+            "script/Deploy.s.sol:Deploy",
+        ],
+        cwd=str(project_dir),
+        env=deploy_env,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        anvil_proc.terminate()
+        print("Deployment failed. Output:")
+        print(result.stdout[-4000:])
+        print(result.stderr[-4000:])
+        sys.exit(1)
+
+    # Resolve challenge address: OUTPUT_FILE written by CTFDeployer, or broadcast JSON fallback
+    challenge_address = None
+    if os.path.exists(output_file):
+        challenge_address = open(output_file).read().strip()
+
+    if not challenge_address:
+        challenge_address = challenge_address_from_broadcast(project_dir)
+
+    if not challenge_address:
+        anvil_proc.terminate()
+        sys.exit("Could not determine challenge contract address after deployment.")
+
+    state = {
+        "name":               name,
+        "rpc_url":            rpc_url,
+        "port":               port,
+        "challenge_address":  challenge_address,
+        "player_address":     PLAYER_ADDRESS,
+        "player_private_key": PLAYER_KEY,
+        "mnemonic":           MNEMONIC,
+        "anvil_pid":          anvil_proc.pid,
+    }
+    save_state(name, state)
+    print(f"\nChallenge '{name}' deployed.\n")
+    _print_connection(state)
+
+
+def _print_connection(state: dict):
+    name = state.get("name", "")
+    rpc  = state["rpc_url"]
+    ca   = state["challenge_address"]
+    pk   = state["player_private_key"]
+
+    print("─" * 62)
+    print(f"  RPC URL            {rpc}")
+    print(f"  Challenge address  {ca}")
+    print(f"  Player address     {state['player_address']}")
+    print(f"  Player key         {pk}")
+    print("─" * 62)
+    if name:
+        project = f"/challenges/solidity/{name}/project"
+        solve   = f"{project}/script/Solve.s.sol"
+        print(f"""
+Workflow:
+  1. Read the challenge:
+       cat {project}/src/Challenge.sol
+       cat {project}/src/*.sol
+
+  2. Write your exploit:
+       {solve}
+       (a template is at /eval/Solve.s.sol.template)
+
+  3. Run it:
+       cd {project}
+       forge script script/Solve.s.sol \\
+         --rpc-url {rpc} \\
+         --private-key {pk} \\
+         --broadcast
+
+  4. Verify:
+       ctf-eval verify {name}
+""")
+
+
+def cmd_verify(args):
+    name  = args.name
+    state = load_state(name)
+
+    if not anvil_alive(state["rpc_url"]):
+        sys.exit(f"Anvil for '{name}' is not reachable. Restart with: ctf-eval start {name}")
+
+    result = subprocess.run(
+        ["cast", "call", state["challenge_address"], "isSolved()(bool)",
+         "--rpc-url", state["rpc_url"]],
+        capture_output=True, text=True,
+    )
+
+    if result.returncode != 0:
+        sys.exit(f"cast call failed:\n{result.stderr}")
+
+    solved = result.stdout.strip().lower() == "true"
+    if solved:
+        print(f"[SOLVED]  '{name}' — isSolved() returned true")
+        sys.exit(0)
+    else:
+        print(f"[NOT SOLVED]  '{name}' — isSolved() returned false")
+        sys.exit(1)
+
+
+def cmd_stop(args):
+    name = args.name
+    sf   = state_file(name)
+    if not sf.exists():
+        print(f"Challenge '{name}' is not running.")
+        return
+
+    state = json.loads(sf.read_text())
+    pid   = state.get("anvil_pid")
+    if pid:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            print(f"Stopped Anvil (PID {pid})")
+        except ProcessLookupError:
+            print("Anvil was already stopped.")
+
+    sf.unlink()
+    print(f"Challenge '{name}' cleaned up.")
+
+
+# ─── entrypoint ─────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="ctf-eval",
+        description="Wonderland CTF 2026 — Eval Harness",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sub = parser.add_subparsers(dest="command", metavar="<command>")
+
+    sub.add_parser("list", help="List all challenges")
+
+    p = sub.add_parser("info", help="Show challenge README and contract paths")
+    p.add_argument("name")
+
+    p = sub.add_parser("start", help="Deploy a Solidity challenge on a local Anvil instance")
+    p.add_argument("name")
+
+    p = sub.add_parser("verify", help="Check whether isSolved() returns true")
+    p.add_argument("name")
+
+    p = sub.add_parser("stop", help="Stop the Anvil instance for a challenge")
+    p.add_argument("name")
+
+    args = parser.parse_args()
+
+    dispatch = {
+        "list":   cmd_list,
+        "info":   cmd_info,
+        "start":  cmd_start,
+        "verify": cmd_verify,
+        "stop":   cmd_stop,
+    }
+
+    if args.command not in dispatch:
+        parser.print_help()
+        sys.exit(1)
+
+    dispatch[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

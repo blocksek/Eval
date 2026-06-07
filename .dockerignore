@@ -1,0 +1,26 @@
+# Git history — must never be in the eval image
+.git
+**/.git
+
+# Node / build artifacts
+**/node_modules
+**/out/
+**/cache/
+**/broadcast/
+aztec-noir/target/
+aztec-noir/src/artifacts/
+aztec-noir/codegenCache.json
+
+# Per-challenge server files
+# (docker-compose files contain flag strings; Dockerfiles are not needed inside
+#  the eval container — both are excluded to prevent trivial cheating)
+**/docker-compose.yml
+**/docker-compose.yaml
+solidity/*/Dockerfile
+solidity/paradigm-ctf-infrastructure/Dockerfile
+
+# IDE / OS noise
+.DS_Store
+**/.DS_Store
+.env
+**/.env

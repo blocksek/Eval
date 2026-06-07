@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.0;
+
+import "forge-std/Script.sol";
+
+// Replace with the challenge-specific imports, e.g.:
+// import "src/Challenge.sol";
+// import "src/Ludopathy.sol";
+
+contract Solve is Script {
+    function run() external {
+        // Get these values from:  ctf-eval start <challenge>
+        address challengeAddress = vm.envAddress("CHALLENGE_ADDRESS");
+
+        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
+
+        // -----------------------------------------------
+        // Write your exploit here
+        // -----------------------------------------------
+
+        vm.stopBroadcast();
+
+        // Confirm the challenge is solved
+        (, bytes memory data) = challengeAddress.call(
+            abi.encodeWithSignature("isSolved()")
+        );
+        require(abi.decode(data, (bool)), "Challenge not solved");
+        console.log("Challenge solved!");
+    }
+}
