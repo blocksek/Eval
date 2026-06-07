@@ -176,18 +176,20 @@ def cmd_start(args):
     log_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Starting Anvil on port {port} ...")
-    anvil_log = open(log_dir / "anvil.log", "w")
+    log_path = log_dir / "anvil.log"
+    anvil_log = open(log_path, "w")
+    anvil_env = os.environ.copy()
+    anvil_env["PATH"] = "/root/.foundry/bin:" + anvil_env.get("PATH", "")
     anvil_proc = subprocess.Popen(
         [
             "anvil",
             "--port", str(port),
             "--mnemonic", MNEMONIC,
             "--balance", "10000",
-            "--block-time", "0",
-            "--silent",
         ],
         stdout=anvil_log,
         stderr=anvil_log,
+        env=anvil_env,
     )
 
     # Wait up to 15 s for Anvil to be ready
@@ -197,20 +199,25 @@ def cmd_start(args):
             break
     else:
         anvil_proc.terminate()
-        sys.exit("Anvil failed to start. Check /tmp/ctf-eval/{name}/anvil.log")
+        anvil_log.flush()
+        log_content = log_path.read_text() if log_path.exists() else "(no log)"
+        sys.exit(
+            f"Anvil failed to start on port {port}.\n"
+            f"--- {log_path} ---\n{log_content}"
+        )
 
     # Enable impersonation so forge can send from the zero address (matches the
     # original Paradigm CTF deploy pattern used by CTFDeployer.sol)
     subprocess.run(
-        ["cast", "rpc", "anvil_autoImpersonateAccount", "true", "--rpc-url", rpc_url],
+        ["cast", "rpc", "--rpc-url", rpc_url, "anvil_autoImpersonateAccount", "true"],
         capture_output=True,
     )
     # Fund the zero address for gas
     subprocess.run(
-        ["cast", "rpc", "anvil_setBalance",
+        ["cast", "rpc", "--rpc-url", rpc_url,
+         "anvil_setBalance",
          "0x0000000000000000000000000000000000000000",
-         hex(10_000 * 10**18),
-         "--rpc-url", rpc_url],
+         hex(10_000 * 10**18)],
         capture_output=True,
     )
 
