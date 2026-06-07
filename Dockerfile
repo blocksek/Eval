@@ -18,34 +18,22 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# ── Trust the environment CA (handles TLS-inspecting proxies) ────────────────
-# Copy the CA cert FIRST so all subsequent downloads succeed.
-COPY egress-ca.crt /usr/local/share/ca-certificates/egress-ca.crt
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
-    && update-ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
 # ── System packages ──────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         git \
         build-essential \
+        ca-certificates \
         python3 \
         python3-pip \
         jq \
         procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Ensure git also trusts the system CA store
-RUN git config --global http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
-
 # ── Node.js 22 + Yarn ────────────────────────────────────────────────────────
-# npm uses its own cert store; point it at the system bundle before installing.
-ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/* \
-    && npm config set cafile /etc/ssl/certs/ca-certificates.crt \
     && npm install -g yarn
 
 # ── Foundry (forge, anvil, cast, chisel) ─────────────────────────────────────
