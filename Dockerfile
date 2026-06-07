@@ -11,31 +11,48 @@
 # Run:     docker run -it --rm ctf-eval
 # ───────────────────────────────────────────────────────────────────────────
 
+# ── Pull Foundry binaries from official image ─────────────────────────────
+FROM ghcr.io/foundry-rs/foundry:latest AS foundry-bins
+
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH="/root/.foundry/bin:$PATH"
+
+# ── Trust the environment CA (handles TLS-inspecting proxies) ────────────────
+# Copy the CA cert FIRST so all subsequent downloads succeed.
+COPY egress-ca.crt /usr/local/share/ca-certificates/egress-ca.crt
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # ── System packages ──────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         git \
         build-essential \
-        ca-certificates \
         python3 \
         python3-pip \
         jq \
         procps \
     && rm -rf /var/lib/apt/lists/*
 
+# Ensure git also trusts the system CA store
+RUN git config --global http.sslCAInfo /etc/ssl/certs/ca-certificates.crt
+
 # ── Node.js 22 + Yarn ────────────────────────────────────────────────────────
+# npm uses its own cert store; point it at the system bundle before installing.
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/* \
+    && npm config set cafile /etc/ssl/certs/ca-certificates.crt \
     && npm install -g yarn
 
 # ── Foundry (forge, anvil, cast, chisel) ─────────────────────────────────────
-RUN curl -fsSL https://foundry.paradigm.xyz | bash && foundryup
+COPY --from=foundry-bins /usr/local/bin/forge  /usr/local/bin/forge
+COPY --from=foundry-bins /usr/local/bin/anvil  /usr/local/bin/anvil
+COPY --from=foundry-bins /usr/local/bin/cast   /usr/local/bin/cast
+COPY --from=foundry-bins /usr/local/bin/chisel /usr/local/bin/chisel
 
 # ── Paradigm CTF Python infrastructure ───────────────────────────────────────
 COPY solidity/paradigm-ctf-infrastructure /opt/paradigm-ctf-infrastructure
@@ -65,17 +82,20 @@ RUN \
     find /challenges/aztec-noir/scripts/challenges -mindepth 1 -delete 2>/dev/null; true
 
 # ── Forge library dependencies ────────────────────────────────────────────────
-# forge-std:  not vendored in the repo — install per challenge project.
-# forge-ctf:  vendored for some challenges, needs installing for others.
-# Both are fetched from GitHub at image build time (requires network).
-RUN for project in /challenges/solidity/*/project; do \
+# forge-std:  not vendored — download once then copy to every project.
+# forge-ctf:  vendored in 6 challenges already; copy to the rest from there.
+#
+# We install forge-std for one project (network access for git), then rsync
+# it to the others so we only hit the network once.  forge-ctf is already
+# present in the repo for some challenges; we just copy that tree around.
+# balance-proof already vendors both forge-std and forge-ctf — copy them to
+# every other challenge project that is missing one or both.
+RUN ANCHOR=/challenges/solidity/balance-proof/project/lib && \
+    for project in /challenges/solidity/*/project; do \
         [ -f "$project/foundry.toml" ] || continue; \
-        echo "==> installing libs for $project"; \
-        cd "$project"; \
-        [ -d "lib/forge-std" ] || \
-            forge install --no-git foundry-rs/forge-std    || true; \
-        [ -d "lib/forge-ctf" ] || \
-            forge install --no-git paradigmxyz/forge-ctf   || true; \
+        mkdir -p "$project/lib"; \
+        [ -d "$project/lib/forge-std" ] || cp -r "$ANCHOR/forge-std" "$project/lib/"; \
+        [ -d "$project/lib/forge-ctf"  ] || cp -r "$ANCHOR/forge-ctf"  "$project/lib/"; \
     done
 
 # ── Pre-build all Solidity challenges ────────────────────────────────────────

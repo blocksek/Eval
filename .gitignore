@@ -11,3 +11,4 @@ aztec-noir/node_modules/
 
 # Environment files
 .env
+egress-ca.crt
