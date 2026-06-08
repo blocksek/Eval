@@ -1,10 +1,57 @@
 {
   "providers": {
-    "local": {
-      "name": "Local LLM (host:8000)",
-      "baseUrl": "http://host.docker.internal:8000/v1",
+    "localmlx-lm": {
+      "baseUrl": "http://host.docker.internal:8081/v1",
       "api": "openai-completions",
       "apiKey": "local",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsUsageInStreaming": false,
+        "maxTokensField": "max_tokens",
+        "supportsStrictMode": false
+      },
+      "models": [
+        {
+          "id": "mlx-community/Qwen3.6-35B-A3B-4bit",
+          "name": "Qwen3.6 35B A3B 4-bit via MLX LM",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 262144,
+          "maxTokens": 16384,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    },
+    "localmlx-lm-thinking": {
+      "baseUrl": "http://host.docker.internal:8081/v1",
+      "api": "openai-completions",
+      "apiKey": "local",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsUsageInStreaming": false,
+        "maxTokensField": "max_tokens",
+        "supportsStrictMode": false,
+        "thinkingFormat": "qwen-chat-template"
+      },
+      "models": [
+        {
+          "id": "mlx-community/Qwen3.6-35B-A3B-4bit",
+          "name": "Qwen3.6 35B A3B 4-bit via MLX LM (Thinking)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 262144,
+          "maxTokens": 16384,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    },
+    "ds4": {
+      "name": "ds4.c local",
+      "baseUrl": "http://host.docker.internal:8000/v1",
+      "api": "openai-completions",
+      "apiKey": "dsv4-local",
       "compat": {
         "supportsStore": false,
         "supportsDeveloperRole": false,
@@ -18,7 +65,7 @@
       "models": [
         {
           "id": "deepseek-v4-flash",
-          "name": "Local DeepSeek V4 Flash (host:8000)",
+          "name": "DeepSeek V4 Flash (ds4.c local)",
           "reasoning": true,
           "thinkingLevelMap": {
             "off": null,
@@ -31,14 +78,24 @@
           "input": ["text"],
           "contextWindow": 500000,
           "maxTokens": 384000,
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          }
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
         }
       ]
+    },
+    "fireworks": {
+      "baseUrl": "https://api.fireworks.ai/inference",
+      "modelOverrides": {
+        "accounts/fireworks/models/kimi-k2p6": {
+          "name": "Kimi K2.6 (Fireworks)",
+          "contextWindow": 262144,
+          "maxTokens": 262144
+        },
+        "accounts/fireworks/models/glm-5p1": {
+          "name": "GLM 5.1 (Fireworks)",
+          "contextWindow": 202000,
+          "maxTokens": 25344
+        }
+      }
     }
   }
 }
