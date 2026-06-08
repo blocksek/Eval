@@ -1,0 +1,56 @@
+# ── Wonderland CTF 2026 — Agent Container ────────────────────────────────────
+#
+# Provides an environment for the pi coding agent to solve CTF challenges:
+#   • Foundry (forge/anvil/cast/chisel)
+#   • Node.js 22 + Yarn
+#   • Python 3 + requests + web3
+#   • pi coding agent (npm install -g @earendil-works/pi-coding-agent)
+# ─────────────────────────────────────────────────────────────────────────────
+
+FROM ghcr.io/foundry-rs/foundry:latest AS foundry-bins
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ── System packages ───────────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        git \
+        build-essential \
+        ca-certificates \
+        python3 \
+        python3-pip \
+        jq \
+        procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Node.js 22 + Yarn ─────────────────────────────────────────────────────────
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g yarn
+
+# ── Foundry (forge, anvil, cast, chisel) ──────────────────────────────────────
+COPY --from=foundry-bins /usr/local/bin/forge  /usr/local/bin/forge
+COPY --from=foundry-bins /usr/local/bin/anvil  /usr/local/bin/anvil
+COPY --from=foundry-bins /usr/local/bin/cast   /usr/local/bin/cast
+COPY --from=foundry-bins /usr/local/bin/chisel /usr/local/bin/chisel
+
+# ── Python dependencies ───────────────────────────────────────────────────────
+RUN pip3 install --no-cache-dir requests web3
+
+# ── Pi coding agent ───────────────────────────────────────────────────────────
+RUN npm install -g @earendil-works/pi-coding-agent
+
+# ── Agent scripts ─────────────────────────────────────────────────────────────
+COPY agent/ /agent/
+RUN chmod +x /agent/entrypoint.sh
+
+# ── Environment variables ─────────────────────────────────────────────────────
+ENV CTF_RPC_URL=""
+ENV CTF_INFO_URL=""
+ENV OPENAI_BASE_URL=""
+ENV OPENAI_API_KEY=""
+
+CMD ["/agent/entrypoint.sh"]

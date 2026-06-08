@@ -1,0 +1,31 @@
+services:
+  ctf-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "8545:8545"
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/manifest.json"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 300s
+
+  ctf-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    depends_on:
+      ctf-server:
+        condition: service_healthy
+    environment:
+      CTF_RPC_URL: http://ctf-server:8545
+      CTF_INFO_URL: http://ctf-server:8080
+      OPENAI_BASE_URL: http://host.docker.internal:8000/v1
+      OPENAI_API_KEY: local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    stdin_open: true
+    tty: true
