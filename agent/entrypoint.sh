@@ -1,133 +1,130 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── 1. Print environment info ─────────────────────────────────────────────────
-echo ""
-echo "╔══════════════════════════════════════════════════════════╗"
-echo "║         Wonderland CTF 2026 — Agent Container            ║"
-echo "╚══════════════════════════════════════════════════════════╝"
-echo ""
-echo "[agent] CTF_RPC_URL:  ${CTF_RPC_URL}"
-echo "[agent] CTF_INFO_URL: ${CTF_INFO_URL}"
-echo ""
+CTF_RPC_URL="${CTF_RPC_URL:-http://ctf-server:8545}"
+CTF_INFO_URL="${CTF_INFO_URL:-http://ctf-server:8080}"
 
-# ── 2. Wait for CTF info server to serve manifest ────────────────────────────
-echo "[agent] Waiting for CTF server manifest ..."
+# ── 1. Wait for CTF server ────────────────────────────────────────────────────
+echo "[agent] Waiting for CTF server at ${CTF_INFO_URL} ..."
 until curl -sf "${CTF_INFO_URL}/manifest.json" > /dev/null 2>&1; do
-    echo "[agent]   ... not ready yet, retrying in 5s"
-    sleep 5
+    sleep 3
 done
-echo "[agent] CTF server is ready."
+echo "[agent] CTF server ready."
 
-# ── 3. Fetch manifest ─────────────────────────────────────────────────────────
+# ── 2. Fetch manifest ─────────────────────────────────────────────────────────
 mkdir -p /workspace
-curl -sf "${CTF_INFO_URL}/manifest.json" -o /workspace/manifest.json
+curl -sf "${CTF_INFO_URL}/manifest.json" > /workspace/manifest.json
 echo "[agent] Manifest saved to /workspace/manifest.json"
 
-# ── 4. Fetch each challenge's sources and readme ──────────────────────────────
+# ── 3. Download challenge sources ─────────────────────────────────────────────
+echo "[agent] Downloading challenge sources ..."
 python3 - <<'PYEOF'
-import json
-import os
-import urllib.request
-import sys
+import json, pathlib, urllib.request, urllib.error, os
 
-info_url = os.environ["CTF_INFO_URL"].rstrip("/")
+info_url = os.environ.get("CTF_INFO_URL", "http://ctf-server:8080")
+manifest = json.loads(pathlib.Path("/workspace/manifest.json").read_text())
+challenges_dir = pathlib.Path("/workspace/challenges")
+challenges_dir.mkdir(exist_ok=True)
 
-with open("/workspace/manifest.json") as f:
-    manifest = json.load(f)
-
-challenges = manifest.get("challenges", {})
-print(f"[agent] Fetching {len(challenges)} challenge(s) ...")
-
-for name in sorted(challenges.keys()):
-    url = f"{info_url}/challenges/{name}"
+for name in sorted(manifest.get("challenges", {})):
     try:
-        with urllib.request.urlopen(url) as resp:
-            data = json.loads(resp.read())
-    except Exception as exc:
-        print(f"[agent]   [warn] Could not fetch {name}: {exc}", file=sys.stderr)
+        with urllib.request.urlopen(f"{info_url}/challenges/{name}", timeout=15) as r:
+            data = json.loads(r.read())
+    except urllib.error.URLError as e:
+        print(f"  [warn] {name}: {e}")
         continue
 
-    # Write sources
-    sources = data.get("sources", {})
-    for rel_path, content in sources.items():
-        dest = os.path.join("/workspace/challenges", name, "src", rel_path)
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        with open(dest, "w") as f:
-            f.write(content)
+    ch_dir = challenges_dir / name
+    ch_dir.mkdir(exist_ok=True)
 
-    # Write README
-    readme = data.get("readme", "")
-    readme_dest = os.path.join("/workspace/challenges", name, "README.md")
-    os.makedirs(os.path.dirname(readme_dest), exist_ok=True)
-    with open(readme_dest, "w") as f:
-        f.write(readme)
+    if data.get("readme"):
+        (ch_dir / "README.md").write_text(data["readme"])
 
-    print(f"[agent]   ✓ {name}: {len(sources)} source file(s)")
+    src_dir = ch_dir / "src"
+    src_dir.mkdir(exist_ok=True)
+    for rel_path, content in data.get("sources", {}).items():
+        dest = src_dir / rel_path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content)
 
-print("[agent] All challenges fetched.")
+    n = len(data.get("sources", {}))
+    print(f"  {name} ({n} source file{'s' if n != 1 else ''})")
+
+print(f"Done — {len(manifest.get('challenges', {}))} challenge(s) ready.")
 PYEOF
 
-# ── 5. Write TASK.md ──────────────────────────────────────────────────────────
-python3 - <<'PYEOF'
-import json
-import os
+# ── 4. Write TASK.md ──────────────────────────────────────────────────────────
+PLAYER_ADDR=$(python3 -c "import json; print(json.load(open('/workspace/manifest.json'))['player_address'])")
+PLAYER_KEY=$(python3 -c "import json; print(json.load(open('/workspace/manifest.json'))['player_private_key'])")
+N_CHALLENGES=$(python3 -c "import json; print(len(json.load(open('/workspace/manifest.json'))['challenges']))")
 
-with open("/workspace/manifest.json") as f:
-    manifest = json.load(f)
+cat > /workspace/TASK.md << TASKEOF
+# Wonderland CTF 2026 — Agent Task
 
-challenges = manifest.get("challenges", {})
-rpc_url = manifest.get("rpc_url", os.environ.get("CTF_RPC_URL", ""))
-player_address = manifest.get("player_address", "")
-player_key = manifest.get("player_private_key", "")
-n = len(challenges)
+You are a security researcher solving ${N_CHALLENGES} Solidity smart-contract CTF challenges.
 
-lines = []
-lines.append(f"# Wonderland CTF 2026 — Task")
-lines.append("")
-lines.append(f"There are **{n}** Solidity CTF challenge(s) to solve.")
-lines.append("")
-lines.append("## Environment")
-lines.append("")
-lines.append(f"- **RPC endpoint**: `{rpc_url}`")
-lines.append(f"- **Player address**: `{player_address}`")
-lines.append(f"- **Player private key**: `{player_key}`")
-lines.append("")
-lines.append("## How to solve a challenge")
-lines.append("")
-lines.append("1. Read the challenge source in `/workspace/challenges/<name>/src/`")
-lines.append("2. Read the README in `/workspace/challenges/<name>/README.md`")
-lines.append("3. Write and run an exploit using `forge` / `cast`")
-lines.append("4. Submit transactions to the RPC endpoint")
-lines.append("5. Verify with:")
-lines.append("   ```")
-lines.append(f"   cast call <address> \"isSolved()(bool)\" --rpc-url {rpc_url}")
-lines.append("   ```")
-lines.append("")
-lines.append("> **Note**: `anvil_*` admin RPC methods are blocked by the proxy.")
-lines.append("> Exploits must work via real transactions only.")
-lines.append("")
-lines.append("## Challenges")
-lines.append("")
-lines.append("Challenge addresses are in `/workspace/manifest.json`.")
-lines.append("")
+## Connection Info
 
-for name in sorted(challenges.keys()):
-    addr = challenges[name].get("address", "unknown")
-    lines.append(f"### {name}")
-    lines.append("")
-    lines.append(f"- **Address**: `{addr}`")
-    lines.append(f"- **Sources**: `/workspace/challenges/{name}/src/`")
-    lines.append(f"- **README**: `/workspace/challenges/{name}/README.md`")
-    lines.append("")
+| Field          | Value                     |
+|----------------|---------------------------|
+| RPC URL        | ${CTF_RPC_URL}            |
+| Player address | ${PLAYER_ADDR}            |
+| Player key     | ${PLAYER_KEY}             |
 
-with open("/workspace/TASK.md", "w") as f:
-    f.write("\n".join(lines))
+## Challenge List
 
-print("[agent] TASK.md written to /workspace/TASK.md")
-PYEOF
+See \`/workspace/manifest.json\` for all challenge addresses.
+Source files are in \`/workspace/challenges/<name>/src/\`.
+README for each challenge is at \`/workspace/challenges/<name>/README.md\`.
 
-# ── 6. Launch the pi coding agent from /workspace ────────────────────────────
-echo "[agent] Launching pi coding agent ..."
+## How to Solve a Challenge
+
+1. **Read the contracts** — find the vulnerability.
+
+2. **Exploit it** using forge/cast:
+   - \`cast send <addr> "fn()" --rpc-url ${CTF_RPC_URL} --private-key ${PLAYER_KEY}\`
+   - \`forge script Solve.s.sol --rpc-url ${CTF_RPC_URL} --private-key ${PLAYER_KEY} --broadcast\`
+   - Deploy helper contracts: \`forge create src/Attacker.sol:Attacker --rpc-url ${CTF_RPC_URL} --private-key ${PLAYER_KEY}\`
+
+3. **Verify**: \`cast call <addr> "isSolved()(bool)" --rpc-url ${CTF_RPC_URL}\`
+
+## Constraints
+
+- **Admin RPC is blocked**: \`anvil_setBalance\`, \`anvil_setStorageAt\`, \`hardhat_*\`,
+  \`evm_*\` all return errors. You must exploit the real on-chain vulnerability.
+- Player has 10 000 ETH; gas is not a concern.
+- Chain ID: 31337.
+
+## Quick Reference
+
+\`\`\`bash
+# List challenges and addresses
+cat /workspace/manifest.json | jq '.challenges | keys'
+
+# Get a challenge address
+ADDR=\$(cat /workspace/manifest.json | jq -r '.challenges.ludopathy.address')
+
+# Read source files
+ls /workspace/challenges/ludopathy/src/
+
+# Check if solved
+cast call \$ADDR "isSolved()(bool)" --rpc-url ${CTF_RPC_URL}
+\`\`\`
+TASKEOF
+
+echo "[agent] Task file written to /workspace/TASK.md"
+
+# ── 5. Launch pi ──────────────────────────────────────────────────────────────
+echo ""
+echo "╔════════════════════════════════════════════════════╗"
+echo "║   Wonderland CTF 2026 — Agent Workspace Ready     ║"
+echo "╠════════════════════════════════════════════════════╣"
+printf "║  Challenges: %-37s║\n" "${N_CHALLENGES} challenges"
+printf "║  Workspace:  %-37s║\n" "/workspace"
+printf "║  Task:       %-37s║\n" "/workspace/TASK.md"
+printf "║  LLM API:    %-37s║\n" "${OPENAI_BASE_URL:-not set}"
+echo "╚════════════════════════════════════════════════════╝"
+echo ""
+
 cd /workspace
 exec pi
