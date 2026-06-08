@@ -114,17 +114,23 @@ TASKEOF
 
 echo "[agent] Task file written to /workspace/TASK.md"
 
-# ── 5. Launch pi ──────────────────────────────────────────────────────────────
+# ── 5. Install pi config ──────────────────────────────────────────────────────
+# models.json tells pi how to reach the local LLM at host:8000
+mkdir -p /root/.pi/agent
+cp /agent/models.json /root/.pi/agent/models.json
+echo "[agent] Pi model config installed at /root/.pi/agent/models.json"
+
+# ── 6. Launch pi with system prompt ──────────────────────────────────────────
 echo ""
 echo "╔════════════════════════════════════════════════════╗"
 echo "║   Wonderland CTF 2026 — Agent Workspace Ready     ║"
 echo "╠════════════════════════════════════════════════════╣"
 printf "║  Challenges: %-37s║\n" "${N_CHALLENGES} challenges"
 printf "║  Workspace:  %-37s║\n" "/workspace"
-printf "║  Task:       %-37s║\n" "/workspace/TASK.md"
+printf "║  System prompt: %-34s║\n" "/agent/system_prompt.md"
 printf "║  LLM API:    %-37s║\n" "${OPENAI_BASE_URL:-not set}"
 echo "╚════════════════════════════════════════════════════╝"
 echo ""
 
 cd /workspace
-exec pi
+exec pi --system "$(cat /agent/system_prompt.md)"

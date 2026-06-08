@@ -43,9 +43,13 @@ RUN pip3 install --no-cache-dir requests web3
 # ── Pi coding agent ───────────────────────────────────────────────────────────
 RUN npm install -g @earendil-works/pi-coding-agent
 
-# ── Agent scripts ─────────────────────────────────────────────────────────────
+# ── Agent scripts + pi config ────────────────────────────────────────────────
 COPY agent/ /agent/
 RUN chmod +x /agent/entrypoint.sh
+
+# Pre-install pi model config so it's available at /root/.pi/agent/models.json.
+# The entrypoint also copies it at runtime (in case the user bind-mounts /root).
+RUN mkdir -p /root/.pi/agent && cp /agent/models.json /root/.pi/agent/models.json
 
 # ── Environment variables ─────────────────────────────────────────────────────
 ENV CTF_RPC_URL=""
