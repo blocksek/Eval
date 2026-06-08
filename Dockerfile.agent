@@ -47,9 +47,13 @@ RUN npm install -g @earendil-works/pi-coding-agent
 COPY agent/ /agent/
 RUN chmod +x /agent/entrypoint.sh
 
-# Pre-install pi model config so it's available at /root/.pi/agent/models.json.
-# The entrypoint also copies it at runtime (in case the user bind-mounts /root).
-RUN mkdir -p /root/.pi/agent && cp /agent/models.json /root/.pi/agent/models.json
+# Pre-install pi config.  Pi reads these automatically — no CLI flags needed:
+#   /root/.pi/agent/models.json  → model/provider definitions
+#   /root/.pi/agent/SYSTEM.md    → system prompt (replaces pi's default)
+# The entrypoint re-copies at runtime so a bind-mounted /root still works.
+RUN mkdir -p /root/.pi/agent \
+    && cp /agent/models.json       /root/.pi/agent/models.json \
+    && cp /agent/system_prompt.md  /root/.pi/agent/SYSTEM.md
 
 # ── Environment variables ─────────────────────────────────────────────────────
 ENV CTF_RPC_URL=""

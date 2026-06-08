@@ -115,10 +115,13 @@ TASKEOF
 echo "[agent] Task file written to /workspace/TASK.md"
 
 # ── 5. Install pi config ──────────────────────────────────────────────────────
-# models.json tells pi how to reach the local LLM at host:8000
+# Pi reads these files automatically at startup — no CLI flags or escaping needed:
+#   SYSTEM.md    → system prompt (replaces pi's default)
+#   models.json  → model/provider definitions
 mkdir -p /root/.pi/agent
-cp /agent/models.json /root/.pi/agent/models.json
-echo "[agent] Pi model config installed at /root/.pi/agent/models.json"
+cp /agent/models.json      /root/.pi/agent/models.json
+cp /agent/system_prompt.md /root/.pi/agent/SYSTEM.md
+echo "[agent] Pi config installed (models.json + SYSTEM.md)"
 
 # ── 6. Launch pi with system prompt ──────────────────────────────────────────
 echo ""
@@ -133,4 +136,4 @@ echo "╚═══════════════════════�
 echo ""
 
 cd /workspace
-exec pi --system "$(cat /agent/system_prompt.md)"
+exec pi
